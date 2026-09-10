@@ -5,6 +5,7 @@ import type { Database } from './db';
 import {
     getAllGames,
     getAllGameIds,
+    getFilteredGames,
     getGameById,
 } from './games';
 
@@ -50,6 +51,43 @@ describe('games data-access helpers', () => {
         const ids = await getAllGameIds(db);
         const all = await getAllGames(db);
         expect(ids).toEqual(all.map((g) => g.id));
+    });
+
+    it('filters games by category and publisher together', async () => {
+        const [strategy] = await db
+            .insert(categories)
+            .values({ name: 'Strategy', description: 'strategy' })
+            .returning({ id: categories.id });
+        const [puzzle] = await db
+            .insert(categories)
+            .values({ name: 'Puzzle', description: 'puzzle' })
+            .returning({ id: categories.id });
+        const [codeForge] = await db
+            .insert(publishers)
+            .values({ name: 'CodeForge Studios', description: 'code' })
+            .returning({ id: publishers.id });
+        const [devMasters] = await db
+            .insert(publishers)
+            .values({ name: 'DevMasters Inc.', description: 'dev' })
+            .returning({ id: publishers.id });
+
+        await db.insert(games).values([
+            { title: 'Code Strategy', description: 'game', starRating: 4, categoryId: strategy.id, publisherId: codeForge.id },
+            { title: 'Dev Strategy', description: 'game', starRating: 4, categoryId: strategy.id, publisherId: devMasters.id },
+            { title: 'Code Puzzle', description: 'game', starRating: 4, categoryId: puzzle.id, publisherId: codeForge.id },
+        ]);
+
+        const categoryGames = await getFilteredGames(db, { categoryIds: [strategy.id] });
+        expect(categoryGames.map((game) => game.title)).toEqual(['Code Strategy', 'Dev Strategy']);
+
+        const publisherGames = await getFilteredGames(db, { publisherId: codeForge.id });
+        expect(publisherGames.map((game) => game.title)).toEqual(['Code Puzzle', 'Code Strategy']);
+
+        const combinedGames = await getFilteredGames(db, {
+            categoryIds: [strategy.id],
+            publisherId: codeForge.id,
+        });
+        expect(combinedGames.map((game) => game.title)).toEqual(['Code Strategy']);
     });
 
     it('fetches a single game by id', async () => {

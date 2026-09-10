@@ -24,6 +24,28 @@ test.describe('Game Listing and Navigation', () => {
     });
   });
 
+  test('should filter games by category and publisher together', async ({ page }) => {
+    await page.goto('/');
+
+    await test.step('Filter the game list by category', async () => {
+      await page.getByRole('checkbox', { name: 'Strategy' }).check();
+      await expect(page.getByTestId('filter-results')).toContainText(/Showing \d+ games?/);
+      await expect(page.getByTestId('game-card').filter({ hasText: 'DevOps Dominion' })).toBeVisible();
+      await expect(page.getByTestId('game-card').filter({ hasText: 'Code Puzzle Chronicles' })).toBeHidden();
+    });
+
+    await test.step('Combine the category and publisher filters', async () => {
+      await page.getByTestId('publisher-filter').selectOption({ label: 'CodeForge Studios' });
+      await expect(page.getByTestId('game-card').filter({ hasText: 'DevOps Dominion' })).toBeVisible();
+      await expect(page.getByTestId('game-card').filter({ hasText: 'Pipeline Conquest' })).toBeHidden();
+    });
+
+    await test.step('Reset the filters', async () => {
+      await page.getByTestId('reset-filters').click();
+      await expect(page.getByTestId('game-card').filter({ hasText: 'Code Puzzle Chronicles' })).toBeVisible();
+    });
+  });
+
   test('should navigate to correct game details page when clicking on a game', async ({ page }) => {
     let gameId: string | null;
     let gameTitle: string | null;
